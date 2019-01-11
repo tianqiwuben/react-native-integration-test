@@ -10,7 +10,7 @@
   "license": "MIT",
   "dependencies": {
     "express": "^4.16.4",
-    "react-native": "^0.57.8",
+    "http": "0.0.0",
     "react-native-device-info": "^0.24.3",
     "socket.io-client": "^2.2.0"
   }
