@@ -1,13 +1,13 @@
 {
-  "name": "integration-tester",
+  "name": "react-native-integration-test",
   "version": "1.0.0",
-  "description": "",
+  "description": "Pure Javascript Integration Testing and Automation Framework for React Native",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
     "express": "^4.16.4",
     "react-native": "^0.57.8",
