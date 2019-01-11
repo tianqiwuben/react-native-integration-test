@@ -41,7 +41,7 @@ class Tester {
     const testHost = config.testHost || '127.0.0.1';
     const port = config.port || '8083';
 
-    this.socket = io(`ws://${ipAddress}:${port}`, {
+    this.socket = io(`ws://${testHost}:${port}`, {
         jsonp: false,
         transports: ['websocket']
     });
