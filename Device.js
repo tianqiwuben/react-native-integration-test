@@ -55,7 +55,7 @@ class Device {
         if(config.verbose) {
           console.log(new Date(), 'Tester connected with ip', socket.handshake.address);
           for(let attr in deviceInfo) {
-            console.log(attr + ':' + deviceInfo[attr])
+            console.log(attr + ': ' + deviceInfo[attr])
           }
         }
 
@@ -96,10 +96,6 @@ class Device {
 
   component(identifier) {
     return new Component(identifier, this);
-  }
-
-  async restartApp() {
-    return await this.exec('restartApp');
   }
 
   async measure(identifier, options = {}) {
@@ -164,7 +160,7 @@ class Device {
           const shouldWait = this.config.deviceTimeout || 5000;
           if (Date.now() - startTime >= shouldWait) {
             clearInterval(loop);
-            return reject(new Error('Device time out for', command, payload));
+            return reject(new Error('Device time out for ' + command + ' ' + JSON.stringify(payload)));
           }
         }
       }, 25);

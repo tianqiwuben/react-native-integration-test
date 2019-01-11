@@ -30,22 +30,19 @@ let tester = null;
 
 class Tester {
 
-  static init() {
-    tester = new Tester();
+  static init(hostConfig = {}) {
+    tester = new Tester(hostConfig);
   }
 
-  constructor(config = {}) {
+  constructor(hostConfig = {}) {
     this.windowWidth = Dimensions.get('window').width;
     this.windowHeight = Dimensions.get('window').height;
     this.testOverLayComponent = null;
-    const testHost = config.testHost || '127.0.0.1';
-    const port = config.port || '8083';
+    const testHost = hostConfig.testHost || 'localhost';
+    const port = hostConfig.port || '8083';
+    const protocol = hostConfig.protocol || 'http';
 
-    this.socket = io(`ws://${testHost}:${port}`, {
-        jsonp: false,
-        transports: ['websocket']
-    });
-
+    this.socket = io(`${protocol}://${testHost}:${port}`, hostConfig.options || {});
 
     this.socket.on('connect', () => {
       this.registerDevice();
@@ -73,6 +70,9 @@ class Tester {
       model: DeviceInfo.getModel(),
       systemVersion: DeviceInfo.getSystemVersion(),
       version: DeviceInfo.getVersion(),
+      windowWidth: this.windowWidth,
+      windowHeight: this.windowHeight,
+
     });
   }
 
@@ -279,7 +279,7 @@ class Tester {
         }
       }
     }
-    throw new ComponentNotVisibleError(`Component with identifier ${identifier} was not visible: threshold ${threshold} ${options.visibility} ${this.visibilityThreshold} ${JSON.stringify(position)}`);
+    throw new ComponentNotVisibleError(`Component with identifier ${identifier} was not visible: threshold ${threshold} ${JSON.stringify(position)}`);
   }
 
   invisible = async (identifier, options = {}) => {

@@ -1,6 +1,6 @@
 {
   "name": "react-native-integration-test",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "Pure Javascript Integration Testing and Automation Framework for React Native",
   "main": "index.js",
   "author": "@tianqiwu",
@@ -28,7 +28,7 @@
   },
   "homepage": "https://github.com/tianqiwuben/react-native-integration-test",
   "peerDependencies": {
-    "react-native": ">= 0.40.0 <= 0.57.2"
+    "react-native": ">= 0.40.0"
   },
   "dependencies": {
     "express": "^4.16.4",
