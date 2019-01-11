@@ -7,7 +7,7 @@ import {
 } from 'react-native';
 import DeviceInfo from 'react-native-device-info';
 import io from 'socket.io-client';
-const RCTUIManager = require('NativeModules').UIManager;
+const RCTUIManager = require('react-native').NativeModules.UIManager;
 
 import TestHook from './TestHook';
 
