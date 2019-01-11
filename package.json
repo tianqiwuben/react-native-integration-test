@@ -1,6 +1,6 @@
 {
   "name": "react-native-integration-test",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Pure Javascript Integration Testing and Automation Framework for React Native",
   "main": "index.js",
   "scripts": {
@@ -10,7 +10,6 @@
   "license": "MIT",
   "dependencies": {
     "express": "^4.16.4",
-    "http": "0.0.0",
     "react-native-device-info": "^0.24.3",
     "socket.io-client": "^2.2.0"
   }
