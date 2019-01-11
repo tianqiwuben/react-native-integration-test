@@ -1,3 +1,5 @@
+const defaultConfig = require('./config.default.js');
+
 class Component {
   constructor(identifier, device) {
     this.identifier = identifier;
@@ -36,13 +38,21 @@ class Device {
     this.config = config;
     this.commandResults = {};
     this.extendFunctions = {};
+    this.deviceInfo = null;
+    this.config = Object.assign(defaultConfig, config);
 
     const app = require('express')();
     const http = require('http').Server(app);
-    const port = config.port || 8083
+    const port = config.port || 8083;
+
+
+
+    if(this.config.verbose) {
+      console.log('Device configured as', this.config);
+    }
     
     http.listen(port, () => {
-      if(config.verbose) {
+      if(this.config.verbose) {
         console.log(`Device listening on *:${port}`);
       }
     });
@@ -53,23 +63,25 @@ class Device {
       this.socket = socket;
 
       socket.on('deviceInfo', (deviceInfo) => {
-        if(config.verbose) {
+
+        if(this.config.verbose) {
           console.log(new Date(), 'Tester connected with ip', socket.handshake.address);
           for(let attr in deviceInfo) {
             console.log(attr + ': ' + deviceInfo[attr])
           }
         }
 
-        socket.emit('config', config);
-
-        deviceReady(deviceInfo);
-
+        socket.emit('config', this.config);
+        if(!this.deviceInfo || !config.allowDeviceDisconnet) {
+          this.deviceInfo = deviceInfo;
+          deviceReady(deviceInfo);
+        }
       });
 
 
       socket.on('execDone', (payload) => {
         this.commandResults[payload.cid] = {result: payload.result};
-        if(config.verbose && payload.cid != this.cid) {
+        if(this.config.verbose && payload.cid != this.cid) {
           console.log('Warning: device responded time out result.');
         }
       });
@@ -78,6 +90,11 @@ class Device {
         this.commandResults[payload.cid] = {exception: payload.message};
       });
 
+      socket.on('disconnect', () => {
+        if(!this.config.allowDeviceDisconnet) {
+          throw new Error('Device disconnected');
+        }
+      })
 
     });
 
