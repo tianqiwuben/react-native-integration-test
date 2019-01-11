@@ -35,6 +35,7 @@ class Device {
     this.cid = 0;
     this.config = config;
     this.commandResults = {};
+    this.extendFunctions = {};
 
     const app = require('express')();
     const http = require('http').Server(app);
@@ -80,6 +81,7 @@ class Device {
 
     });
 
+    this.extend.bind(this);
     this.measure.bind(this);
     this.visible.bind(this);
     this.invisible.bind(this);
@@ -96,6 +98,16 @@ class Device {
 
   component(identifier) {
     return new Component(identifier, this);
+  }
+
+  async extend(funcName) {
+    this[funcName] = async function(){
+      const args = [];
+      for (var i = 0; i < arguments.length; i++) {
+        args.push(arguments[i]);
+      }
+      return await this.exec('extended', {funcName, args})
+    }
   }
 
   async measure(identifier, options = {}) {
@@ -152,7 +164,7 @@ class Device {
           const result = this.commandResults[cid];
           delete this.commandResults[cid];
           if(result.exception) {
-            return reject(new Error(result.exception));
+            return reject(new Error(command + ': ' + result.exception));
           } else {
             return resolve(result.result);
           }

@@ -31,13 +31,18 @@ let tester = null;
 class Tester {
 
   static init(hostConfig = {}) {
+    if(tester) {
+      return tester;
+    }
     tester = new Tester(hostConfig);
+    return tester;
   }
 
   constructor(hostConfig = {}) {
     this.windowWidth = Dimensions.get('window').width;
     this.windowHeight = Dimensions.get('window').height;
     this.testOverLayComponent = null;
+    this.extendFunctions = {};
     const testHost = hostConfig.testHost || 'localhost';
     const port = hostConfig.port || '8083';
     const protocol = hostConfig.protocol || 'http';
@@ -131,6 +136,11 @@ class Tester {
         }
         case 'component': {
           const execResult = await this.componentExec(payload.identifier, payload.jobs, payload.options);
+          this.reportExecDone(payload.cid, execResult);
+          break;
+        }
+        case 'extended': {
+          const execResult = await this.extendFunctions[payload.funcName](...payload.args);
           this.reportExecDone(payload.cid, execResult);
           break;
         }
@@ -329,8 +339,8 @@ class Tester {
     return styles;
   }
 
-  reRenderApp = async () => {
-    this.component.forceUpdate();
+  extend = (funcName, f = () => {}) => {
+    this.extendFunctions[funcName] = f;
   }
 
 }
