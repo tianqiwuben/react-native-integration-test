@@ -110,6 +110,8 @@ class Device {
     this.fillIn.bind(this);
     this.press.bind(this);
     this.exec.bind(this);
+    this.scrollToSee.bind(this);
+    this.printHooks.bind(this);
 
   }
 
@@ -127,6 +129,10 @@ class Device {
     }
   }
 
+  async scrollToSee(scrollview, identifier, options = {}) {
+    return await this.exec('scrollToSee', {scrollview, identifier, options});
+  }
+
   async measure(identifier, options = {}) {
     return await this.exec('measure', {identifier, options});
   }
@@ -137,6 +143,12 @@ class Device {
 
   async invisible(identifier, options = {}) {
     return await this.exec('invisible', {identifier, options});
+  }
+
+  async printHooks() {
+    const hooks = await this.exec('getHooks');
+    console.log(hooks);
+    return hooks;
   }
 
   async getHooks() {
@@ -186,7 +198,7 @@ class Device {
             return resolve(result.result);
           }
         } else {
-          const shouldWait = this.config.deviceTimeout || 5000;
+          const shouldWait = (payload.options && payload.options.deviceTimeout) || this.config.deviceTimeout || 5000;
           if (Date.now() - startTime >= shouldWait) {
             clearInterval(loop);
             return reject(new Error('Device time out for ' + command + ' ' + JSON.stringify(payload)));

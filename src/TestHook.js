@@ -70,6 +70,7 @@ class TestHook {
       f(component);
     }
   }
+
 }
 
 const store = new TestHook();

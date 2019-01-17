@@ -1,17 +1,61 @@
 {
-  "name": "react-native-integration-test",
-  "version": "1.0.7",
+  "_from": "react-native-integration-test@latest",
+  "_id": "react-native-integration-test@1.0.6",
+  "_inBundle": false,
+  "_integrity": "sha512-QvpgD70mxEhqhIsumLrEwszbO02/rY6Ftch05upJhxqwn8IpaqkgKUzBUOFGrDM1YkrQ2IymWVzzgYUpN5F0Aw==",
+  "_location": "/react-native-integration-test",
+  "_phantomChildren": {
+    "async-limiter": "1.0.0",
+    "backo2": "1.0.2",
+    "base64-arraybuffer": "0.1.5",
+    "component-bind": "1.0.0",
+    "component-emitter": "1.2.1",
+    "component-inherit": "0.0.3",
+    "engine.io-parser": "2.1.3",
+    "has-binary2": "1.0.3",
+    "has-cors": "1.1.0",
+    "indexof": "0.0.1",
+    "ms": "2.0.0",
+    "object-component": "0.0.3",
+    "parseqs": "0.0.5",
+    "parseuri": "0.0.5",
+    "to-array": "0.1.4",
+    "xmlhttprequest-ssl": "1.5.5",
+    "yeast": "0.1.2"
+  },
+  "_requested": {
+    "type": "tag",
+    "registry": true,
+    "raw": "react-native-integration-test@latest",
+    "name": "react-native-integration-test",
+    "escapedName": "react-native-integration-test",
+    "rawSpec": "latest",
+    "saveSpec": null,
+    "fetchSpec": "latest"
+  },
+  "_requiredBy": [
+    "/"
+  ],
+  "_resolved": "https://registry.npmjs.org/react-native-integration-test/-/react-native-integration-test-1.0.6.tgz",
+  "_shasum": "e32e9eb6d334947ceb3964ed6c257e23d1806bf7",
+  "_spec": "react-native-integration-test@latest",
+  "_where": "/Users/2redbeans/Development/dating_android",
+  "author": {
+    "name": "@tianqiwuben"
+  },
+  "bugs": {
+    "url": "https://github.com/tianqiwuben/react-native-integration-test/issues"
+  },
+  "bundleDependencies": false,
+  "dependencies": {
+    "express": "^4.16.4",
+    "react-native-device-info": "^0.24.3",
+    "socket.io": "^2.2.0",
+    "socket.io-client": "^2.2.0"
+  },
+  "deprecated": false,
   "description": "Pure Javascript Integration Testing and Automation Framework for React Native",
-  "main": "index.js",
-  "author": "@tianqiwu",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/tianqiwuben/react-native-integration-test"
-  },
-  "author": "@tianqiwuben",
+  "homepage": "https://github.com/tianqiwuben/react-native-integration-test",
   "keywords": [
     "react",
     "react native",
@@ -23,17 +67,17 @@
     "specs"
   ],
   "license": "MIT",
-  "bugs": {
-    "url": "https://github.com/tianqiwuben/react-native-integration-test/issues"
-  },
-  "homepage": "https://github.com/tianqiwuben/react-native-integration-test",
+  "main": "index.js",
+  "name": "react-native-integration-test",
   "peerDependencies": {
     "react-native": ">= 0.40.0"
   },
-  "dependencies": {
-    "express": "^4.16.4",
-    "react-native-device-info": "^0.24.3",
-    "socket.io": "^2.2.0",
-    "socket.io-client": "^2.2.0"
-  }
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tianqiwuben/react-native-integration-test.git"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "version": "1.0.6"
 }

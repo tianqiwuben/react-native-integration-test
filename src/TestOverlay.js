@@ -2,6 +2,7 @@ import React, { Component } from 'react';
 import { 
   View, 
   Animated,
+  PanResponder,
 } from 'react-native';
 import TestHook from './TestHook';
 import PressTrack from './PressTrack';
@@ -41,7 +42,7 @@ class TestOverlay extends Component {
 
   render() {
     return(
-      <View style={{position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'transparent'}} pointerEvents="none">
+      <View style={{position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'transparent'}} pointerEvents={'none'}>
         {
           this.pressPoints.map((point) => 
             <PressTrack

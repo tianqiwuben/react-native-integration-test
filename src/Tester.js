@@ -27,6 +27,7 @@ class ComponentNotVisibleError extends Error {
 }
 
 let tester = null;
+let extendFunctions = {};
 
 class Tester {
 
@@ -38,11 +39,15 @@ class Tester {
     return tester;
   }
 
+  static extend(funcName, f = () => {}){
+    extendFunctions[funcName] = f;
+  }
+
+
   constructor(hostConfig = {}) {
     this.windowWidth = Dimensions.get('window').width;
     this.windowHeight = Dimensions.get('window').height;
     this.testOverLayComponent = null;
-    this.extendFunctions = {};
     const testHost = hostConfig.testHost || 'localhost';
     const port = hostConfig.port || '8083';
     const protocol = hostConfig.protocol || 'http';
@@ -57,6 +62,7 @@ class Tester {
       this.waitTime = config.waitTime || 2000;
       this.pauseAfterPress = config.pauseAfterPress || 0;
       this.visibilityThreshold = config.visibilityThreshold || 100;
+      this.waitVisibility = config.waitVisibility || 300;
     });
 
     this.socket.on('exec', (payload) => {
@@ -139,8 +145,16 @@ class Tester {
           this.reportExecDone(payload.cid, execResult);
           break;
         }
+        case 'scrollToSee': {
+          const execResult = await this.scrollToSee(payload.scrollview, payload.identifier, payload.options);
+          this.reportExecDone(payload.cid, execResult);
+          break;
+        }
         case 'extended': {
-          const execResult = await this.extendFunctions[payload.funcName](...payload.args);
+          if(typeof extendFunctions[payload.funcName] != 'function') {
+            throw new Error(`Extended function ${payload.funcName} is not a function`);
+          }
+          const execResult = await extendFunctions[payload.funcName](...payload.args);
           this.reportExecDone(payload.cid, execResult);
           break;
         }
@@ -269,10 +283,9 @@ class Tester {
     return promise;
   }
 
-  visible = async (identifier, options = {}) => {
-    const component = await this.findComponent(identifier, options);
+
+  checkVisible = async (identifier, threshold) => {
     const position = await this.measure(identifier);
-    const threshold = options.visibility || this.visibilityThreshold;
     const x_distance = Math.min(this.windowWidth, position.pageX + position.width) - Math.max(0, position.pageX);
     const y_distance = Math.min(this.windowHeight, position.pageY + position.height) - Math.max(0, position.pageY);
     if(x_distance > 0 && y_distance > 0) {
@@ -281,13 +294,33 @@ class Tester {
           position.pageX + position.width <= this.windowWidth &&
           position.pageY >= 0 &&
           position.pageY + position.height <= this.windowHeight) {
-          return position;
+          return {position, isVisible: true};
         }
       } else {
         if(x_distance * y_distance >= position.width * position.height * threshold / 100) {
-          return position;
+          return {position, isVisible: true};
         }
       }
+    }
+    return {position, isVisible: false};
+  }
+
+  visible = async (identifier, options = {}) => {
+    const component = await this.findComponent(identifier, options);
+    const threshold = options.visibility || this.visibilityThreshold;
+    let checkVis = await this.checkVisible(identifier, threshold);
+    let position = checkVis.position;
+    if(checkVis.isVisible) {
+      return position;
+    }
+    const waitVisibility = options.waitVisibility || this.waitVisibility;
+    if(waitVisibility > 0) {
+      await this.pause(waitVisibility);
+    }
+    checkVis = await this.checkVisible(identifier, threshold);
+    position = checkVis.position;
+    if(checkVis.isVisible) {
+      return position;
     }
     throw new ComponentNotVisibleError(`Component with identifier ${identifier} was not visible: threshold ${threshold} ${JSON.stringify(position)}`);
   }
@@ -338,9 +371,55 @@ class Tester {
     }
     return styles;
   }
+  // options
+  //   position: start, end, visible, center
+  //     default: visible
 
-  extend = (funcName, f = () => {}) => {
-    this.extendFunctions[funcName] = f;
+  scrollToSee = async (scrollviewId, identifier, options = {}) => {
+    const scrollview = await this.findComponent(scrollviewId, options);
+    const component = await this.findComponent(identifier, options);
+    const componentPos = await this.measure(identifier);
+    const scrollPos = await this.measure(scrollviewId);
+    const bottomDiff = componentPos.pageY + componentPos.height - scrollPos.pageY - scrollPos.height;
+    const topDiff = componentPos.pageY - scrollPos.pageY;
+    const rightDiff = componentPos.pageX + componentPos.width - scrollPos.pageX - scrollPos.width;
+    const leftDiff = componentPos.pageX - scrollPos.pageX;
+    let x = componentPos.x;
+    let y = componentPos.y;   //start
+    const posOption = options.position || 'visible';
+    if(posOption == 'end') {
+      y = componentPos.height + componentPos.y - scrollPos.height;
+      x = componentPos.width + componentPos.x - scrollPos.width;
+    } else if(posOption == 'center') {
+      y = componentPos.y - (scrollPos.height - componentPos.height) / 2;
+      x = componentPos.x - (scrollPos.width - componentPos.width) / 2;
+    } else if (posOption == 'visible') {
+      let needToScroll = false;
+      if(bottomDiff > 0) {
+        y = componentPos.height + componentPos.y - scrollPos.height;
+        needToScroll = true;
+      } else if (topDiff < 0) {
+        needToScroll = true;
+      }
+      if(rightDiff > 0) {
+        x = componentPos.width + componentPos.x - scrollPos.width;
+        needToScroll = true;
+      } else if (leftDiff < 0) {
+        needToScroll = true;
+      }
+      if(!needToScroll) {
+        return await this.visible(identifier, options);
+      }
+    }
+    if(x < 0) {
+      x = 0;
+    }
+    if(y < 0) {
+      y = 0;
+    }
+    scrollview.scrollTo({x, y});
+    await this.pause(options.pauseAfterScroll || 300);
+    return await this.visible(identifier, options);
   }
 
 }
