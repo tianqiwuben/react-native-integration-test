@@ -17,7 +17,20 @@ class PressTrack extends Component {
       margin: new Animated.Value(maxCircle - minCircle),
     }
   }
+
   componentDidMount() {
+    if(this.props.ref) {
+      this.props.ref(this);
+    }
+  }
+
+  componentWillUnmount() {
+    if(this.props.ref) {
+      this.props.ref();
+    }
+  }
+
+  release = () => {
     Animated.parallel([
       Animated.timing(
         this.state.fadeAnim,
@@ -41,11 +54,12 @@ class PressTrack extends Component {
         }
       )
     ]).start();
-    setTimeout(() => {
-      this.props.pressFinished(this.props.key);
-    }, animDuration)
+    return new Promise((resolve, reject) => {
+      setTimeout(() => resolve(), animDuration);
+    })
   }
-  
+
+
   render() {
     return(
       <View

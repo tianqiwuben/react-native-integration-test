@@ -3,7 +3,7 @@ const defaultConfig = {
 
   allowDeviceDisconnet: false,
 
-  port: 8083,
+  port: 8098,
 
   waitTime: 2000,
 
@@ -11,17 +11,10 @@ const defaultConfig = {
 
   visibilityThreshold: 100,
 
+  waitVisibility: 500,
+  
   deviceTimeout: 5000,
   
-  hostConfig: {
-    testHost: 'localhost',
-
-    port: 8083,
-
-    options: {}
-  },
-
-
 }
 
 module.exports = defaultConfig;

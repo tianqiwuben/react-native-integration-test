@@ -1,9 +1,13 @@
-import TestHook from './src/TestHook';
-import Tester from './src/Tester';
+const TestStore = require('./src/testStore');
+
+const testExtends = {}
+
 
 const IntegrationTest = {
-  refHook: TestHook.hook,
-  testExtend: Tester.extend,
+  refHook: function(id, f=function(){}){
+    return function(ref){f(ref)}
+  },
+  testExtend: TestStore.testExtend,
 };
 
 module.exports = IntegrationTest;

@@ -1,428 +1,150 @@
-import { 
-  findNodeHandle, 
-  View, 
-  Dimensions,
-  StyleSheet,
-  Platform,
-} from 'react-native';
-import DeviceInfo from 'react-native-device-info';
-import io from 'socket.io-client';
-const RCTUIManager = require('react-native').NativeModules.UIManager;
+const WebSocket = require('ws');
 
-import TestHook from './TestHook';
-
-
-class ComponentNotFoundError extends Error {
-  constructor(message) {
-    super(message);
-    this.name = 'ComponentNotFoundError';
-  }
-}
-
-class ComponentNotVisibleError extends Error {
-  constructor(message) {
-    super(message);
-    this.name = 'ComponentNotVisibleError';
-  }
-}
-
-let tester = null;
-let extendFunctions = {};
 
 class Tester {
 
-  static init(hostConfig = {}) {
-    if(tester) {
-      return tester;
+  constructor(config = {}) {
+
+    this._ws = null;
+    this.cid = 0;
+    this._config = config;
+    this.commandResults = {};
+    this._deviceInfo = null;
+
+    const port = config.port || 8098;
+    const testHost = config.testHost || 'localhost';
+
+
+    if(this._config.verbose) {
+      console.log('---- Configuration ----');
+      for(let attr in this._config) {
+        console.log(attr + ': ' + this._config[attr])
+      }
     }
-    tester = new Tester(hostConfig);
-    return tester;
-  }
 
-  static extend(funcName, f = () => {}){
-    extendFunctions[funcName] = f;
-  }
+    const httpServer = require('http').createServer();
+    const server = new WebSocket.Server({server: httpServer});
 
 
-  constructor(hostConfig = {}) {
-    this.windowWidth = Dimensions.get('window').width;
-    this.windowHeight = Dimensions.get('window').height;
-    this.testOverLayComponent = null;
-    const testHost = hostConfig.testHost || 'localhost';
-    const port = hostConfig.port || '8083';
-    const protocol = hostConfig.protocol || 'http';
+    httpServer.listen(8098);
 
-    this.socket = io(`${protocol}://${testHost}:${port}`, hostConfig.options || {});
+    server.on('connection', (ws) => {
+      this._ws = ws;
 
-    this.socket.on('connect', () => {
-      this.registerDevice();
-    });
+      ws.onmessage = (msg) => {
+        const data = JSON.parse(msg.data);
+        if(this._config.verbose) {
+          console.log('Receive message', msg.data);
+        }
+        switch(data.type){
+          case 'deviceInfo': {
+            const deviceInfo = data.deviceInfo;
+            if(this._config.verbose) {
+              console.log("\n---- Device connected ----");
+              for(let attr in deviceInfo) {
+                console.log(attr + ': ' + deviceInfo[attr])
+              }
+            }
 
-    this.socket.on('config', (config) => {
-      this.waitTime = config.waitTime || 2000;
-      this.pauseAfterPress = config.pauseAfterPress || 0;
-      this.visibilityThreshold = config.visibilityThreshold || 100;
-      this.waitVisibility = config.waitVisibility || 300;
-    });
+            this.send({type: 'config', config: this._config});
 
-    this.socket.on('exec', (payload) => {
-      this.exec(payload);
-    })
+            this._deviceInfo = deviceInfo;
 
-  }
-
-
-  registerDevice = () => {
-    const os = Platform.OS
-    this.socket.emit('deviceInfo', {
-      platform: os,
-      apiLevel: os === 'android' ? DeviceInfo.getAPILevel() : null,
-      buildNumber: DeviceInfo.getBuildNumber(),
-      model: DeviceInfo.getModel(),
-      systemVersion: DeviceInfo.getSystemVersion(),
-      version: DeviceInfo.getVersion(),
-      windowWidth: this.windowWidth,
-      windowHeight: this.windowHeight,
-
-    });
-  }
-
-  exec = async (payload) => {
-    try {
-      switch(payload.command) {
-        case 'press': {
-          await this.press(payload.identifier, payload.options);
-          this.reportExecDone(payload.cid, true);
-          break;
-        }
-        case 'fillIn': {
-          await this.fillIn(payload.identifier, payload.content, payload.options);
-          this.reportExecDone(payload.cid, true);
-          break;
-        }
-        case 'exists': {
-          await this.exists(payload.identifier, payload.options);
-          this.reportExecDone(payload.cid, true);
-          break;
-        }
-        case 'notExists': {
-          await this.notExists(payload.identifier, payload.options);
-          this.reportExecDone(payload.cid, true);
-          break;
-        }
-        case 'visible': {
-          await this.visible(payload.identifier, payload.options);
-          this.reportExecDone(payload.cid, true);
-          break;
-        }
-        case 'invisible': {
-          await this.invisible(payload.identifier, payload.options);
-          this.reportExecDone(payload.cid, true);
-          break;
-        }
-        case 'getHooks': {
-          const hookNames = this.getHooks();
-          this.reportExecDone(payload.cid, hookNames);
-          break;
-        }
-        case 'getStyle': {
-          const style = await this.getStyle(payload.identifier, payload.options);
-          this.reportExecDone(payload.cid, style);
-          break;
-        }
-        case 'getAllStyles': {
-          const styles = this.getAllStyles();
-          this.reportExecDone(payload.cid, styles);
-          break;
-        }
-        case 'measure': {
-          const position = await this.measure(payload.identifier, payload.options);
-          this.reportExecDone(payload.cid, position);
-          break;
-        }
-        case 'component': {
-          const execResult = await this.componentExec(payload.identifier, payload.jobs, payload.options);
-          this.reportExecDone(payload.cid, execResult);
-          break;
-        }
-        case 'scrollToSee': {
-          const execResult = await this.scrollToSee(payload.scrollview, payload.identifier, payload.options);
-          this.reportExecDone(payload.cid, execResult);
-          break;
-        }
-        case 'extended': {
-          if(typeof extendFunctions[payload.funcName] != 'function') {
-            throw new Error(`Extended function ${payload.funcName} is not a function`);
+            device.setInfo(deviceInfo, this);
+            device.setRunnerConnected(true);
+            break;
           }
-          const execResult = await extendFunctions[payload.funcName](...payload.args);
-          this.reportExecDone(payload.cid, execResult);
-          break;
+          case 'execDone': {
+            this.commandResults[data.cid] = {result: data.result};
+            if(this._config.verbose && data.cid != this.cid) {
+              console.log('Warning: device responded time out result.');
+            }
+            break;
+          }
+          case 'reportException': {
+            this.commandResults[data.cid] = {exception: data.message};
+            break;
+          }
         }
       }
-    } catch (e) {
-      this.reportException(payload.cid, e);
-    }
 
-  }
-
-  reportExecDone = (cid, result) => {
-    this.socket.emit('execDone', { cid, result });
-  }  
-
-  reportException = (cid, e) => {
-    this.socket.emit('reportException', {cid, message: e.message});
-  }
-
-
-  componentExec = async (identifier, jobs, options) => {
-    const component = await this.findComponent(identifier, options);
-    let result = component;
-    for(let i = 0; i < jobs.length; i++) {
-      switch(jobs[i].job) {
-        case 'variable': {
-          result = result[jobs[i].varName];
-          break;
-        }
-        case 'func': {
-          result = result[jobs[i].funcName](...jobs[i].args);
-          break;
-        }
-        case 'asyncFunc': {
-          result = await result[jobs[i].funcName](...jobs[i].args);
-          break;
+      ws.onclose = () => {
+        device.setRunnerConnected(false);
+        if(!this._config.allowDeviceDisconnet) {
+          throw new Error('Device disconnected');
         }
       }
-    }
-    //FIXME opbject too large
-    return result;
+    });
+
+    this.exec.bind(this);
+    this.send.bind(this);
+    this.sendCommand.bind(this);
+
   }
 
-  overlayPressPosition = (position) => {
-    const overlay = TestHook.get('IntegrationTestOverlay');
-    if(overlay) {
-      overlay.pressAt(position.pageX + position.width / 2, position.pageY + position.height / 2);
+  send(payload){
+    if (this._ws.readyState === this._ws.OPEN) {
+      const message = JSON.stringify(payload)
+      if(this._config.verbose) {
+        console.log('Send message', message);
+      }
+      this._ws.send(message);
+    } else {
+      throw new Error('Device not connected');
     }
   }
 
 
-  findComponent = (identifier, options = {}) => {
+  async exec(target, data = {}){
+    let traceError = new Error();
+    try {
+      return await this.sendCommand(target, data);
+    } catch(e) {
+      traceError.message = e.message;
+      throw traceError;
+    }
+  }
+
+  sendCommand(target, data) {
     let promise = new Promise((resolve, reject) => {
+      this.cid += 1;
+      const cid = this.cid;
+      const payload = Object.assign({type: 'exec', target, cid}, data);
+      this.send(payload);
       let startTime = Date.now();
       let loop = setInterval(() => {
-        const component = TestHook.get(identifier);
-        if (component) {
+        if(this.commandResults[cid]) {
           clearInterval(loop);
-          return resolve(component);
+          const result = this.commandResults[cid];
+          delete this.commandResults[cid];
+          if(result.exception) {
+            let message = result.exception;
+            if(this._config.verbose) {
+              message = `${result.exception}\n-- ${target} -- \n${JSON.stringify(data)}`;
+            }
+            return reject(new Error(message));
+          } else {
+            return resolve(result.result);
+          }
         } else {
-          const shouldWait = options.waitTime || this.waitTime;
+          let shouldWait = (data.options && data.options.deviceTimeout) || this._config.deviceTimeout || 5000;
+          if(target === 'device' && data.command == 'gesture') {
+            shouldWait += data.duration;
+          }
+          if(target === 'component' && data.options && data.options.waitTime) {
+            shouldWait = data.options.waitTime + 1000;
+          }
           if (Date.now() - startTime >= shouldWait) {
-            reject(new ComponentNotFoundError(`Could not find component with identifier ${identifier}`));
             clearInterval(loop);
+            return reject(new Error('Execution time out for ' + JSON.stringify(data)));
           }
         }
-      }, 100);
-    });
-
-    return promise;
-  }
-
-  fillIn = async (identifier, str, options={}) => {
-    const position = await this.visible(identifier, options);
-    const component = await this.findComponent(identifier, options);
-    this.overlayPressPosition(position);
-    component.focus();
-    component.props.onChangeText(str);
-  }
-
-  press = async (identifier, options = {}) => {
-    const position = await this.visible(identifier, options);
-    const component = await this.findComponent(identifier, options);
-    const pressCount = options.count || 1;
-    const pauseAfterPress = options.pauseAfterPress || this.pauseAfterPress;
-    for(let i = 0; i < pressCount; i++) {
-      this.overlayPressPosition(position);
-      component.props.onPress();
-      if(i > 0) {
-        await this.pause(pauseAfterPress);
-      }
-    }
-    if(pauseAfterPress === 0) {
-      return;
-    }
-    await this.pause(pauseAfterPress);
-  }
-
-  pause = async (time) => {
-    if(time <= 0) {
-      return;
-    }
-    let promise = new Promise((resolve, reject) => {
-      setTimeout(function() {
-        resolve();
-      }, time);
-    });
-
-    return promise;
-  }
-
-  getHooks = () => {
-    return Object.keys(TestHook.getHooks());
-  }
-
-  measure = async (identifier, options = {}) => {
-    const component = await this.findComponent(identifier, options);
-    let promise = new Promise((resolve, reject) => {
-      try{
-        RCTUIManager.measure(findNodeHandle(component), (x, y, width, height, pageX, pageY) => {
-          resolve({x, y, width, height, pageX, pageY});
-        })
-      } catch (e) {
-        reject(e);
-      }
+      }, 25);
     });
     return promise;
-  }
-
-
-  checkVisible = async (identifier, threshold) => {
-    const position = await this.measure(identifier);
-    const x_distance = Math.min(this.windowWidth, position.pageX + position.width) - Math.max(0, position.pageX);
-    const y_distance = Math.min(this.windowHeight, position.pageY + position.height) - Math.max(0, position.pageY);
-    if(x_distance > 0 && y_distance > 0) {
-      if(threshold == 100) {
-        if(position.pageX >= 0 && 
-          position.pageX + position.width <= this.windowWidth &&
-          position.pageY >= 0 &&
-          position.pageY + position.height <= this.windowHeight) {
-          return {position, isVisible: true};
-        }
-      } else {
-        if(x_distance * y_distance >= position.width * position.height * threshold / 100) {
-          return {position, isVisible: true};
-        }
-      }
-    }
-    return {position, isVisible: false};
-  }
-
-  visible = async (identifier, options = {}) => {
-    const component = await this.findComponent(identifier, options);
-    const threshold = options.visibility || this.visibilityThreshold;
-    let checkVis = await this.checkVisible(identifier, threshold);
-    let position = checkVis.position;
-    if(checkVis.isVisible) {
-      return position;
-    }
-    const waitVisibility = options.waitVisibility || this.waitVisibility;
-    if(waitVisibility > 0) {
-      await this.pause(waitVisibility);
-    }
-    checkVis = await this.checkVisible(identifier, threshold);
-    position = checkVis.position;
-    if(checkVis.isVisible) {
-      return position;
-    }
-    throw new ComponentNotVisibleError(`Component with identifier ${identifier} was not visible: threshold ${threshold} ${JSON.stringify(position)}`);
-  }
-
-  invisible = async (identifier, options = {}) => {
-    try {
-      await this.visible(identifier, options);
-    } catch (e) {
-      if(e.name == 'ComponentNotVisibleError') {
-        return true;
-      }
-      throw e;
-    }
-    throw new Error(`Component with identifier ${identifier} was visible`);
-  }
-
-  exists = async (identifier, options = {}) => {
-    const component = await this.findComponent(identifier, options);
-    return !!component;
-  }
-
-
-  notExists = async (identifier, options = {}) => {
-    try {
-      await this.findComponent(identifier);
-    } catch(e) {
-      if (e.name == 'ComponentNotFoundError') {
-        return true;
-      }
-      throw e;
-    }
-    throw new Error(`Component with identifier ${identifier} was present`);
-  }
-
-  getStyle = async (identifier, options = {}) => {
-    const component = await this.findComponent(identifier, options);
-    return StyleSheet.flatten(component.props.style);
-  }
-
-  getAllStyles = () => {
-    const styles = {};
-    const hooks = TestHook.getHooks();
-    for (let id in hooks) {
-      const component = hooks[id];
-      if(component.props && component.props.style) {
-        styles[id] = StyleSheet.flatten(component.props.style);
-      }
-    }
-    return styles;
-  }
-  // options
-  //   position: start, end, visible, center
-  //     default: visible
-
-  scrollToSee = async (scrollviewId, identifier, options = {}) => {
-    const scrollview = await this.findComponent(scrollviewId, options);
-    const component = await this.findComponent(identifier, options);
-    const componentPos = await this.measure(identifier);
-    const scrollPos = await this.measure(scrollviewId);
-    const bottomDiff = componentPos.pageY + componentPos.height - scrollPos.pageY - scrollPos.height;
-    const topDiff = componentPos.pageY - scrollPos.pageY;
-    const rightDiff = componentPos.pageX + componentPos.width - scrollPos.pageX - scrollPos.width;
-    const leftDiff = componentPos.pageX - scrollPos.pageX;
-    let x = componentPos.x;
-    let y = componentPos.y;   //start
-    const posOption = options.position || 'visible';
-    if(posOption == 'end') {
-      y = componentPos.height + componentPos.y - scrollPos.height;
-      x = componentPos.width + componentPos.x - scrollPos.width;
-    } else if(posOption == 'center') {
-      y = componentPos.y - (scrollPos.height - componentPos.height) / 2;
-      x = componentPos.x - (scrollPos.width - componentPos.width) / 2;
-    } else if (posOption == 'visible') {
-      let needToScroll = false;
-      if(bottomDiff > 0) {
-        y = componentPos.height + componentPos.y - scrollPos.height;
-        needToScroll = true;
-      } else if (topDiff < 0) {
-        needToScroll = true;
-      }
-      if(rightDiff > 0) {
-        x = componentPos.width + componentPos.x - scrollPos.width;
-        needToScroll = true;
-      } else if (leftDiff < 0) {
-        needToScroll = true;
-      }
-      if(!needToScroll) {
-        return await this.visible(identifier, options);
-      }
-    }
-    if(x < 0) {
-      x = 0;
-    }
-    if(y < 0) {
-      y = 0;
-    }
-    scrollview.scrollTo({x, y});
-    await this.pause(options.pauseAfterScroll || 300);
-    return await this.visible(identifier, options);
   }
 
 }
 
 
-export default Tester;
+module.exports = Tester;

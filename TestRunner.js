@@ -2,27 +2,28 @@ import React, { Component } from 'react';
 import { 
   View, 
 } from 'react-native';
-import TestHook from './src/TestHook';
 import TestOverlay from './src/TestOverlay';
-import Tester from './src/Tester';
+import Runner from './src/runner';
+import Gestures from './src/gestures';
 
 class TestRunner extends Component {
   constructor(props) {
     super(props);
   }
-  componentDidMount() {
-    this.tester = Tester.init(this.props.config);
-    TestHook.hook('IntegrationTestRunner')(this);
+
+  setTestOverlay = (ref) => {
+    this._gestures = Gestures.init(this, ref);
   }
-  componentWillUnmount(){
-    TestHook.hook('IntegrationTestRunner')();
+
+  componentDidMount() {
+    this._runner = new Runner();
   }
 
   render() {
     return(
       <View style={{position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'transparent'}}>
         {this.props.children}
-        <TestOverlay />
+        <TestOverlay ref={(ref) => this.setTestOverlay(ref)}/>
       </View>
     )
   }

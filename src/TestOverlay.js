@@ -4,7 +4,6 @@ import {
   Animated,
   PanResponder,
 } from 'react-native';
-import TestHook from './TestHook';
 import PressTrack from './PressTrack';
 
 const pressSize = 25;
@@ -15,28 +14,62 @@ class TestOverlay extends Component {
     this.state = {
       pressCount: 0,
     }
-    this.pressPoints = [];
+    this._pressPoints = {};
   }
   componentDidMount() {
-    TestHook.hook('IntegrationTestOverlay')(this);
+    if(this.props.ref) {
+      this.props.ref(this);
+    }
   }
-  componentWillUnmount(){
-    TestHook.hook('IntegrationTestOverlay')();
+
+  componentWillUnmount() {
+    if(this.props.ref){
+      this.props.ref();
+    }
+  }
+
+  setTrackRef = (key, ref) => {
+    if(this._pressPoints[key]) {
+      this._pressPoints[key].ref = ref
+    }
   }
 
   pressAt = (x,y) => {
-    this.pressPoints.push({
-      key: this.state.pressCount,
+    const pressID = this.state.pressCount;
+    this._pressPoints[pressID] = {
+      id: pressID,
       x: x,
-      y: y
-    })
+      y: y,
+    };
     this.setState({
-      pressCount: this.state.pressCount + 1,
+      pressCount: pressID + 1,
     })
   }
 
-  pressFinished = (key) => {
-    this.pressPoints.shift();
+  pressFinished = async (key) => {
+    if(this._pressPoints[key].ref) {
+      await this._pressPoints[key].ref.release();
+    }
+    delete this._pressPoints[key];
+    this.forceUpdate();
+  }
+
+  startTrack = (x, y) => {
+    const trackID = this.state.pressCount;
+    this._pressPoints[trackID] = {
+      key: trackID,
+      x: x,
+      y: y,
+    };
+    this.setState({
+      pressCount: trackID + 1,
+    })
+    return trackID;
+  }
+
+  moveTrack = (trackID, x, y) => {
+    this._pressPoints[trackID].x = x;
+    this._pressPoints[trackID].y = y;
     this.forceUpdate();
   }
 
@@ -44,12 +77,14 @@ class TestOverlay extends Component {
     return(
       <View style={{position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'transparent'}} pointerEvents={'none'}>
         {
-          this.pressPoints.map((point) => 
+          Object.keys(this._pressPoints).map((key) => 
             <PressTrack
-              key={point.key}
-              x={point.x}
-              y={point.y}
-              pressFinished={this.pressFinished}
+              key={key}
+              pressID={this._pressPoints[key].id}
+              x={this._pressPoints[key].x}
+              y={this._pressPoints[key].y}
+              ref={(ref) => this.setTrackRef(key, ref)}
+
             />
           )
         }
