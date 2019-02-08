@@ -1,6 +1,6 @@
 {
   "name": "react-native-integration-test",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Pure Javascript Integration Testing and Automation Framework for React Native",
   "main": "index.js",
   "author": "@tianqiwu",
