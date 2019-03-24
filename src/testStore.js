@@ -9,7 +9,6 @@ class TestStore {
     this._nodesByTestId = {};
     this._nodes = {};
     this._waitTime = 2000;
-
     if(hook) {
       hook.on('react-devtools', this.attachToDevtools);
       // if devtools is already started
@@ -19,12 +18,10 @@ class TestStore {
     }
   }
 
-
   attachToDevtools = (agent) => {
     this._agent = agent;
     agent.sub('mount', this.onMountData);
     agent.sub('unmount', this.onUnmountData);
-    agent.sub('rootCommitted', this.onRootCommitted);
   }
 
   testExtend = (funcName, r) => {
@@ -46,6 +43,7 @@ class TestStore {
       this._nodesByName[data.name][data.id] = data;
     }
     if(data.props && data.props.testID) {
+      console.log('wtq data.props.testID', data.props.testID);
       this._nodesByTestId[data.props.testID] = this._nodesByTestId[data.props.testID] || {};
       this._nodesByTestId[data.props.testID][data.id] = data;
     }
@@ -53,10 +51,6 @@ class TestStore {
 
   getRoot = () => {
     return this._nodes[this._rootID];
-  }
- 
-  onRootCommitted = (id) => {
-    this._rootID = id;
   }
 
   onUnmountData = (nodeID) => {
@@ -120,7 +114,6 @@ class TestStore {
     const byType = matcher.byType;
     const atIndex = matcher.atIndex;
     const hasProps = matcher.hasProps;
-    const nativeOnly = !byType && !hasProps;
     let nodeList = [];
 
     if(byId) {
@@ -148,15 +141,23 @@ class TestStore {
       }
     }
 
-    if(nativeOnly) {
-      nodeList = nodeList.filter((node) => node.nodeType === 'Native');
+    const childrenList = [];
+    for(let i in nodeList) {
+      if(nodeList[i].children && nodeList[i].children.length > 0) {
+        for(let j in nodeList[i].children){
+          childrenList.push(nodeList[i].children[j]);
+        }
+      }
     }
-
-    if(hasProps) {
-      nodeList = nodeList.filter((node) => {
-        return node.nodeType !== 'Native' && node.props && node.props.hasOwnProperty(hasProps);
-      });
-    }
+    nodeList = nodeList.filter((node) => {
+      if(!node.publicInstance) {
+        return false;
+      }
+      if(hasProps && !(node.props && node.props.hasOwnProperty(hasProps))) {
+        return false;
+      }
+      return true;
+    });
 
     if(nodeList.length == 0) {
       return null;
@@ -171,11 +172,23 @@ class TestStore {
         return nodeList[atIndex];
       } 
       if(nodeList.length > 1) {
-        let errInfo = [];
-        nodeList.forEach((node) => {
-          errInfo.push({name: node.name, type: node.nodeType});
-        })
-        throw new Error(`There're ${nodeList.length} components found. Matcher: ${JSON.stringify(matcher)} ${JSON.stringify(errInfo)}`);
+        const rescueComponent = nodeList[0];
+        if(childrenList.length > 0) {
+          nodeList = nodeList.filter((node) => {
+            return childrenList.indexOf(node.id) != -1;
+          })
+        }
+        if(nodeList.length == 0) {
+          nodeList.push(rescueComponent);
+        }
+
+        if(nodeList.length > 1) {
+          let errInfo = [];
+          nodeList.forEach((node) => {
+            errInfo.push({name: node.name, type: node.nodeType});
+          })
+          throw new Error(`There're ${nodeList.length} components found. Matcher: ${JSON.stringify(matcher)} ${JSON.stringify(errInfo)}`);
+        }
       }
       return nodeList[0];
     }

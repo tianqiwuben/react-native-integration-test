@@ -12,7 +12,7 @@ class Tester {
     this._deviceInfo = null;
 
     const port = config.port || 8098;
-    const testHost = config.testHost || 'localhost';
+    let testHost = config.testHost || 'localhost';
 
 
     if(this._config.verbose) {
@@ -96,6 +96,7 @@ class Tester {
 
 
   async exec(target, data = {}){
+    await device.runnerConnect();
     let traceError = new Error();
     try {
       return await this.sendCommand(target, data);

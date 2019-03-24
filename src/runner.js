@@ -26,8 +26,10 @@ class Runner {
   }
 
   initWs = () => {
-    const testHost = 'localhost';
     const port = 8098;
+    const getDevServer = require('react-native/Libraries/Core/Devtools/getDevServer');
+    const devServer = getDevServer();
+    const testHost = devServer.url.replace(/https?:\/\//, '').split(':')[0];
 
     this._ws = new WebSocket(`ws://${testHost}:${port}`);
  
@@ -39,9 +41,7 @@ class Runner {
     this._ws.onclose = () => {
       setTimeout(() => {
         this._retry += 1;
-        if(this._retry < 100) {
-          this.initWs();
-        }
+        this.initWs();
       }, 4000);
     }
 
@@ -194,28 +194,17 @@ class Runner {
   press = async (matcher, options = {}) => {
     const component = await TestStore.findComponent(matcher);
     const multiPress = options.multiPress || 1;
+    if(typeof component.props.onPress != 'function') {
+      throw new Error(`Component does not have onPress function with matcher ${JSON.stringify(matcher)}`);
+    }
 
     for(let i = 0; i < multiPress; i++) {
       const position = await this._componentMustVisible(component, matcher, options);
       if(position.width < 20 || position.height < 20) {
-        throw new Error(`Component is too small to press ${position} with matcher ${matcher}`);
+        throw new Error(`Component is too small to press ${position} with matcher ${JSON.stringify(matcher)}`);
       }
       const pauseAfterPress = options.pauseAfterPress || this._pauseAfterPress;
-      const x = position.pageX + (options.atX || position.width / 2);
-      const y = position.pageY + (options.atY || position.height / 2);
-      const actions = [
-        {
-          action: 'touch',
-          x: x,
-          y: y,
-        },
-        {
-          action: 'release',
-        }
-      ];
-
-      await this.gesture(actions);
-
+      component.props.onPress();
       if(pauseAfterPress > 0) {
         await this.pause(pauseAfterPress);
       }
@@ -225,8 +214,18 @@ class Runner {
 
   _waitInteraction = () => {
     return new Promise((resolve, reject) => {
+      let resolved = false;
+      let st = setTimeout(() => {
+        if(!resolved) {
+          resolved = true;
+          resolve();
+        }
+      }, 300);
       InteractionManager.runAfterInteractions(() => {
-        resolve();
+        if(!resolved) {
+          resolved = true;
+          resolve();
+        }
       });
     });
   }
@@ -270,6 +269,9 @@ class Runner {
 
   _checkVisible = async (component, threshold) => {
     const position = await this._measureComponent(component);
+    if(threshold === 0) {
+      return {position, isVisible: true};
+    }
     const x_distance = Math.min(this._windowWidth, position.pageX + position.width) - Math.max(0, position.pageX);
     const y_distance = Math.min(this._windowHeight, position.pageY + position.height) - Math.max(0, position.pageY);
     if(x_distance > 0 && y_distance > 0) {
@@ -290,8 +292,14 @@ class Runner {
   }
 
   _componentVisible = async (component, options = {}) => {
-    const threshold = options.visibility || this._visibilityThreshold;
-    const waitVisibility = options.waitVisibility || this._waitVisibility;
+    let threshold = this._visibilityThreshold;
+    if(typeof options.visibility == 'number') {
+      threshold = options.visibility;
+    }
+    let waitVisibility = this._waitVisibility;
+    if(typeof options.waitVisibility == 'number') {
+      waitVisibility = options.waitVisibility;
+    }
     let checkVis = await this._checkVisible(component, threshold);
     checkVis.threshold = threshold;
     checkVis.waitVisibility = waitVisibility;

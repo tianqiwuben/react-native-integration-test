@@ -17,14 +17,14 @@ class TestOverlay extends Component {
     this._pressPoints = {};
   }
   componentDidMount() {
-    if(this.props.ref) {
-      this.props.ref(this);
+    if(this.props.setRef) {
+      this.props.setRef(this);
     }
   }
 
   componentWillUnmount() {
-    if(this.props.ref){
-      this.props.ref();
+    if(this.props.setRef){
+      this.props.setRef();
     }
   }
 

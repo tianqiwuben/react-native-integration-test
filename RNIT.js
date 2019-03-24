@@ -10,12 +10,6 @@ const RNIT = {
     global.device = new Device();
     tester = new Tester(Object.assign(defaultConfig, config));
     global.component = Component.init(tester);
-    try{
-      await device.runnerConnect();
-    }catch(e) {
-      console.error(e);
-      process.exit(1);
-    }
   },
 }
 

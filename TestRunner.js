@@ -23,7 +23,7 @@ class TestRunner extends Component {
     return(
       <View style={{position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: 'transparent'}}>
         {this.props.children}
-        <TestOverlay ref={(ref) => this.setTestOverlay(ref)}/>
+        <TestOverlay setRef={(ref) => this.setTestOverlay(ref)}/>
       </View>
     )
   }

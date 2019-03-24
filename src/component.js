@@ -141,6 +141,7 @@ class Component {
 
   async press(options = {}) {
     this.checkMatcher();
+    this._matcher.hasProps = 'onPress';
     const data = {
       matcher: this._matcher,
       options: Object.assign(this._options, options),
