@@ -18,18 +18,6 @@ class PressTrack extends Component {
     }
   }
 
-  componentDidMount() {
-    if(this.props.ref) {
-      this.props.ref(this);
-    }
-  }
-
-  componentWillUnmount() {
-    if(this.props.ref) {
-      this.props.ref();
-    }
-  }
-
   release = () => {
     Animated.parallel([
       Animated.timing(

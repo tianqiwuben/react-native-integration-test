@@ -60,6 +60,11 @@ class Component {
     return this;
   }
 
+  waitInteraction(ms) {
+    this._options.interactionWait = ms;
+    return this;
+  }
+
   requireVisibility(percentage) {
     this._options.visibility = percentage;
     return this;

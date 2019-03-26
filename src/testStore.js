@@ -43,7 +43,6 @@ class TestStore {
       this._nodesByName[data.name][data.id] = data;
     }
     if(data.props && data.props.testID) {
-      console.log('wtq data.props.testID', data.props.testID);
       this._nodesByTestId[data.props.testID] = this._nodesByTestId[data.props.testID] || {};
       this._nodesByTestId[data.props.testID][data.id] = data;
     }

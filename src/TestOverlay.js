@@ -46,11 +46,11 @@ class TestOverlay extends Component {
     })
   }
 
-  pressFinished = async (key) => {
-    if(this._pressPoints[key].ref) {
-      await this._pressPoints[key].ref.release();
+  pressFinished = async (trackID) => {
+    if(this._pressPoints[trackID].ref) {
+      await this._pressPoints[trackID].ref.release();
     }
-    delete this._pressPoints[key];
+    delete this._pressPoints[trackID];
     this.forceUpdate();
   }
 

@@ -89,7 +89,7 @@ class Runner {
 
   exec = async (payload) => {
     try {
-      await this._waitInteraction();
+      await this._waitInteraction(payload.options);
       switch(payload.command) {
         case 'press': {
           await this.press(payload.matcher, payload.options);
@@ -201,10 +201,13 @@ class Runner {
     for(let i = 0; i < multiPress; i++) {
       const position = await this._componentMustVisible(component, matcher, options);
       if(position.width < 20 || position.height < 20) {
-        throw new Error(`Component is too small to press ${position} with matcher ${JSON.stringify(matcher)}`);
+        throw new Error(`Component is too small to press w-${position.width} h-${position.height} with matcher ${JSON.stringify(matcher)}`);
       }
       const pauseAfterPress = options.pauseAfterPress || this._pauseAfterPress;
       component.props.onPress();
+      const x = position.pageX + (options.atX || position.width / 2);
+      const y = position.pageY + (options.atY || position.height / 2);
+      Gestures.press(x, y);
       if(pauseAfterPress > 0) {
         await this.pause(pauseAfterPress);
       }
@@ -212,7 +215,18 @@ class Runner {
     return true;
   }
 
-  _waitInteraction = () => {
+  _waitInteraction = (options = {}) => {
+    let interactionWait = 300;
+    if(typeof options.interactionWait == 'number') {
+      if(options.interactionWait <= 0) {
+        return;
+      }
+      if(options.interactionWait > 10000) {
+        interactionWait = 10000;
+      } else {
+        interactionWait = options.interactionWait;
+      }
+    }
     return new Promise((resolve, reject) => {
       let resolved = false;
       let st = setTimeout(() => {
@@ -220,7 +234,7 @@ class Runner {
           resolved = true;
           resolve();
         }
-      }, 300);
+      }, interactionWait);
       InteractionManager.runAfterInteractions(() => {
         if(!resolved) {
           resolved = true;

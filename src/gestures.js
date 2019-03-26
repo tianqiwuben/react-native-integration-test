@@ -22,6 +22,7 @@ class Gestures {
     this._textInput = null;
     this._receiveTouches = BatchedBridge.getCallableModule('RCTEventEmitter').receiveTouches;
     this._receiveEvent = BatchedBridge.getCallableModule('RCTEventEmitter').receiveEvent;
+    this._pressList = [];
   }
 
   action = async (actions) => {
@@ -39,6 +40,15 @@ class Gestures {
         this.animateFrame();
       }
     });
+  }
+
+  press = async (x, y) => {
+    const trackID = this._testOverlay.startTrack(x, y);
+    this._pressList.push(trackID);
+    if(this._hasLiveAction == false) {
+      this._hasLiveAction = true;
+      this.animateFrame();
+    }
   }
 
   textInput = async (actions) => {
@@ -65,6 +75,10 @@ class Gestures {
     const moveEvents = [];
     const touchList = [];
     let idx = 0;
+    if(this._pressList.length > 0) {
+      const trackID = this._pressList.shift();
+      this._testOverlay.pressFinished(trackID);
+    }
     for(let gesID in this._gestureList) {
       const gesEvent = this._gestureList[gesID].getEvent(curTime);
       touchList.push(gesEvent.touch);
@@ -132,7 +146,10 @@ const gestures = {
   },
   textInput: (actions) => {
     return gesturesInst.textInput(actions);
-  }
+  },
+  press: (x, y) => {
+    return gesturesInst.press(x, y);
+  },
 };
 
 export default gestures;
