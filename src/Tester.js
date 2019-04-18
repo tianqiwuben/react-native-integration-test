@@ -1,10 +1,9 @@
-const WebSocket = require('ws');
+/* eslint-disable no-underscore-dangle */
+const webS = require('ws');
 
 
 class Tester {
-
   constructor(config = {}) {
-
     this._ws = null;
     this.cid = 0;
     this._config = config;
@@ -12,18 +11,18 @@ class Tester {
     this._deviceInfo = null;
 
     const port = config.port || 8098;
-    let testHost = config.testHost || 'localhost';
+    const testHost = config.testHost || 'localhost';
 
 
-    if(this._config.verbose) {
+    if (this._config.verbose) {
       console.log('---- Configuration ----');
-      for(let attr in this._config) {
-        console.log(attr + ': ' + this._config[attr])
+      for (const attr in this._config) {
+        console.log(`${attr}: ${this._config[attr]}`);
       }
     }
 
     const httpServer = require('http').createServer();
-    const server = new WebSocket.Server({server: httpServer});
+    const server = new webS.Server({ server: httpServer });
 
 
     httpServer.listen(8098);
@@ -33,20 +32,20 @@ class Tester {
 
       ws.onmessage = (msg) => {
         const data = JSON.parse(msg.data);
-        if(this._config.verbose) {
+        if (this._config.verbose) {
           console.log('Receive message', msg.data);
         }
-        switch(data.type){
+        switch (data.type) {
           case 'deviceInfo': {
-            const deviceInfo = data.deviceInfo;
-            if(this._config.verbose) {
-              console.log("\n---- Device connected ----");
-              for(let attr in deviceInfo) {
-                console.log(attr + ': ' + deviceInfo[attr])
+            const { deviceInfo } = data;
+            if (this._config.verbose) {
+              console.log('\n---- Device connected ----');
+              for (const attr in deviceInfo) {
+                console.log(`${attr}: ${deviceInfo[attr]}`);
               }
             }
 
-            this.send({type: 'config', config: this._config});
+            this.send({ type: 'config', config: this._config });
 
             this._deviceInfo = deviceInfo;
 
@@ -55,37 +54,37 @@ class Tester {
             break;
           }
           case 'execDone': {
-            this.commandResults[data.cid] = {result: data.result};
-            if(this._config.verbose && data.cid != this.cid) {
+            this.commandResults[data.cid] = { result: data.result };
+            if (this._config.verbose && data.cid != this.cid) {
               console.log('Warning: device responded time out result.');
             }
             break;
           }
           case 'reportException': {
-            this.commandResults[data.cid] = {exception: data.message};
+            this.commandResults[data.cid] = { exception: data.message };
             break;
           }
+          default:
         }
-      }
+      };
 
       ws.onclose = () => {
         device.setRunnerConnected(false);
-        if(!this._config.allowDeviceDisconnet) {
+        if (!this._config.allowDeviceDisconnet) {
           throw new Error('Device disconnected');
         }
-      }
+      };
     });
 
     this.exec.bind(this);
     this.send.bind(this);
     this.sendCommand.bind(this);
-
   }
 
-  send(payload){
+  send(payload) {
     if (this._ws.readyState === this._ws.OPEN) {
-      const message = JSON.stringify(payload)
-      if(this._config.verbose) {
+      const message = JSON.stringify(payload);
+      if (this._config.verbose) {
         console.log('Send message', message);
       }
       this._ws.send(message);
@@ -95,56 +94,53 @@ class Tester {
   }
 
 
-  async exec(target, data = {}){
+  async exec(target, data = {}) {
     await device.runnerConnect();
-    let traceError = new Error();
+    const traceError = new Error();
     try {
       return await this.sendCommand(target, data);
-    } catch(e) {
+    } catch (e) {
       traceError.message = e.message;
       throw traceError;
     }
   }
 
   sendCommand(target, data) {
-    let promise = new Promise((resolve, reject) => {
+    const promise = new Promise((resolve, reject) => {
       this.cid += 1;
-      const cid = this.cid;
-      const payload = Object.assign({type: 'exec', target, cid}, data);
+      const { cid } = this;
+      const payload = Object.assign({ type: 'exec', target, cid }, data);
       this.send(payload);
-      let startTime = Date.now();
-      let loop = setInterval(() => {
-        if(this.commandResults[cid]) {
+      const startTime = Date.now();
+      const loop = setInterval(() => {
+        if (this.commandResults[cid]) {
           clearInterval(loop);
           const result = this.commandResults[cid];
           delete this.commandResults[cid];
-          if(result.exception) {
+          if (result.exception) {
             let message = result.exception;
-            if(this._config.verbose) {
+            if (this._config.verbose) {
               message = `${result.exception}\n-- ${target} -- \n${JSON.stringify(data)}`;
             }
             return reject(new Error(message));
-          } else {
-            return resolve(result.result);
           }
-        } else {
-          let shouldWait = (data.options && data.options.deviceTimeout) || this._config.deviceTimeout || 5000;
-          if(target === 'device' && data.command == 'gesture') {
-            shouldWait += data.duration;
-          }
-          if(target === 'component' && data.options && data.options.waitTime) {
-            shouldWait = data.options.waitTime + 1000;
-          }
-          if (Date.now() - startTime >= shouldWait) {
-            clearInterval(loop);
-            return reject(new Error('Execution time out for ' + JSON.stringify(data)));
-          }
+          return resolve(result.result);
+        }
+        let shouldWait = (data.options && data.options.deviceTimeout) || this._config.deviceTimeout || 5000;
+        if (target === 'device' && data.command === 'gesture') {
+          shouldWait += data.duration;
+        }
+        if (target === 'component' && data.options && data.options.waitTime) {
+          shouldWait = data.options.waitTime + 1000;
+        }
+        if (Date.now() - startTime >= shouldWait) {
+          clearInterval(loop);
+          return reject(new Error(`Execution time out for ${JSON.stringify(data)}`));
         }
       }, 25);
     });
     return promise;
   }
-
 }
 
 

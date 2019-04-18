@@ -1,27 +1,22 @@
-import { 
-  findNodeHandle, 
-  View, 
+/* eslint-disable no-underscore-dangle */
+import {
+  findNodeHandle,
   Dimensions,
-  StyleSheet,
   Platform,
   InteractionManager,
 } from 'react-native';
 import DeviceInfo from 'react-native-device-info';
-
-const UIManager = require('react-native').NativeModules.UIManager;
-
-const TestStore = require('./testStore');
-
 import Gestures from './gestures';
 
-class Runner {
+const { UIManager } = require('react-native').NativeModules;
+const TestStore = require('./testStore');
 
+class Runner {
   constructor() {
     this._windowWidth = Dimensions.get('window').width;
     this._windowHeight = Dimensions.get('window').height;
     this._retry = 0;
     this._verbose = false;
-    
     this.initWs();
   }
 
@@ -32,7 +27,7 @@ class Runner {
     const testHost = devServer.url.replace(/https?:\/\//, '').split(':')[0];
 
     this._ws = new WebSocket(`ws://${testHost}:${port}`);
- 
+
     this._ws.onopen = () => {
       this._retry = 0;
       this.registerDevice();
@@ -43,13 +38,13 @@ class Runner {
         this._retry += 1;
         this.initWs();
       }, 4000);
-    }
+    };
 
     this._ws.onmessage = (payload) => {
       const data = JSON.parse(payload.data);
-      switch(data.type) {
+      switch (data.type) {
         case 'config': {
-          const config = data.config;
+          const { config } = data;
           TestStore.setWaitTime(config.waitTime);
           this._verbose = config.verbose || false;
           this._pauseAfterPress = config.pauseAfterPress || 0;
@@ -59,14 +54,17 @@ class Runner {
         }
         case 'exec': {
           this.exec(data);
+          break;
         }
+        default:
       }
     };
   }
 
   registerDevice = () => {
-    const os = Platform.OS
-    this.send({type: 'deviceInfo', 
+    const os = Platform.OS;
+    this.send({
+      type: 'deviceInfo',
       deviceInfo: {
         platform: os,
         apiLevel: os === 'android' ? DeviceInfo.getAPILevel() : null,
@@ -90,7 +88,7 @@ class Runner {
   exec = async (payload) => {
     try {
       await this._waitInteraction(payload.options);
-      switch(payload.command) {
+      switch (payload.command) {
         case 'press': {
           await this.press(payload.matcher, payload.options);
           this.reportExecDone(payload.cid, true);
@@ -111,7 +109,7 @@ class Runner {
           this.reportExecDone(payload.cid, execResult);
           break;
         }
-        case'propCallback': {
+        case 'propCallback': {
           const execResult = await this.propCallback(payload.matcher, payload.funcName, payload.params);
           this.reportExecDone(payload.cid, execResult);
           break;
@@ -148,7 +146,7 @@ class Runner {
         }
         case 'extended': {
           const func = TestStore.getTestExtend(payload.funcName);
-          if(typeof func != 'function') {
+          if (typeof func !== 'function') {
             throw new Error(`Extended function ${payload.funcName} is not a function`);
           }
           const execResult = await func(...payload.args);
@@ -162,25 +160,22 @@ class Runner {
     } catch (e) {
       this.reportException(payload.cid, e);
     }
-
   }
 
   reportExecDone = (cid, result) => {
-    this.send({type: 'execDone', cid, result });
-  }  
+    this.send({ type: 'execDone', cid, result });
+  }
 
   reportException = (cid, e) => {
-    this.send({type: 'reportException', cid, message: e.message});
+    this.send({ type: 'reportException', cid, message: e.message });
   }
 
-  gesture = async (actions, options) => {
-    return await Gestures.action(actions);
-  }
+  gesture = async (actions, options) => await Gestures.action(actions)
 
-  fillIn = async (matcher, content, options={}) => {
+  fillIn = async (matcher, content, options = {}) => {
     const component = await TestStore.findComponent(matcher);
-    const position = await this._componentMustVisible(component, matcher, options);
-    component.publicInstance.focus();
+    await this._componentMustVisible(component, matcher, options);
+    component.focus && component.focus();
     component.props.onChangeText(content);
     return true;
   }
@@ -194,13 +189,14 @@ class Runner {
   press = async (matcher, options = {}) => {
     const component = await TestStore.findComponent(matcher);
     const multiPress = options.multiPress || 1;
-    if(typeof component.props.onPress != 'function') {
+    if (typeof component.props.onPress !== 'function') {
       throw new Error(`Component does not have onPress function with matcher ${JSON.stringify(matcher)}`);
     }
 
-    for(let i = 0; i < multiPress; i++) {
+    for (let i = 0; i < multiPress; i += 1) {
+      // eslint-disable-next-line no-await-in-loop
       const position = await this._componentMustVisible(component, matcher, options);
-      if(position.width < 20 || position.height < 20) {
+      if (position.width < 20 || position.height < 20) {
         throw new Error(`Component is too small to press w-${position.width} h-${position.height} with matcher ${JSON.stringify(matcher)}`);
       }
       const pauseAfterPress = options.pauseAfterPress || this._pauseAfterPress;
@@ -208,7 +204,8 @@ class Runner {
       const x = position.pageX + (options.atX || position.width / 2);
       const y = position.pageY + (options.atY || position.height / 2);
       Gestures.press(x, y);
-      if(pauseAfterPress > 0) {
+      if (pauseAfterPress > 0) {
+        // eslint-disable-next-line no-await-in-loop
         await this.pause(pauseAfterPress);
       }
     }
@@ -217,11 +214,11 @@ class Runner {
 
   _waitInteraction = (options = {}) => {
     let interactionWait = 300;
-    if(typeof options.interactionWait == 'number') {
-      if(options.interactionWait <= 0) {
+    if (typeof options.interactionWait === 'number') {
+      if (options.interactionWait <= 0) {
         return;
       }
-      if(options.interactionWait > 10000) {
+      if (options.interactionWait > 10000) {
         interactionWait = 10000;
       } else {
         interactionWait = options.interactionWait;
@@ -229,14 +226,14 @@ class Runner {
     }
     return new Promise((resolve, reject) => {
       let resolved = false;
-      let st = setTimeout(() => {
-        if(!resolved) {
+      const st = setTimeout(() => {
+        if (!resolved) {
           resolved = true;
           resolve();
         }
       }, interactionWait);
       InteractionManager.runAfterInteractions(() => {
-        if(!resolved) {
+        if (!resolved) {
           resolved = true;
           resolve();
         }
@@ -245,11 +242,11 @@ class Runner {
   }
 
   pause = async (time) => {
-    if(time <= 0) {
+    if (time <= 0) {
       return;
     }
-    let promise = new Promise((resolve, reject) => {
-      setTimeout(function() {
+    const promise = new Promise((resolve, reject) => {
+      setTimeout(() => {
         resolve();
       }, time);
     });
@@ -258,15 +255,17 @@ class Runner {
   }
 
   _measureComponent = (component) => {
-    const nativeViewTag = findNodeHandle(component.publicInstance);
-    if(!nativeViewTag) {
+    const nativeViewTag = findNodeHandle(component);
+    if (!nativeViewTag) {
       throw new Error(`Can't found nativeViewTag for component ${component.name} ${component.nodeType}`);
     }
-    let promise = new Promise((resolve, reject) => {
-      try{
+    const promise = new Promise((resolve, reject) => {
+      try {
         UIManager.measure(nativeViewTag, (x, y, width, height, pageX, pageY) => {
-          resolve({x, y, width, height, pageX, pageY, nativeViewTag});
-        })
+          resolve({
+            x, y, width, height, pageX, pageY, nativeViewTag
+          });
+        });
       } catch (e) {
         reject(e);
       }
@@ -277,51 +276,51 @@ class Runner {
 
   measure = async (matcher, options = {}) => {
     const component = await TestStore.findComponent(matcher);
-    return await this._measureComponent(component);
+    return this._measureComponent(component);
   }
 
 
   _checkVisible = async (component, threshold) => {
     const position = await this._measureComponent(component);
-    if(threshold === 0) {
-      return {position, isVisible: true};
+    if (threshold === 0) {
+      return { position, isVisible: true };
     }
     const x_distance = Math.min(this._windowWidth, position.pageX + position.width) - Math.max(0, position.pageX);
     const y_distance = Math.min(this._windowHeight, position.pageY + position.height) - Math.max(0, position.pageY);
-    if(x_distance > 0 && y_distance > 0) {
-      if(threshold == 100) {
-        if(position.pageX >= 0 && 
-          position.pageX + position.width <= this._windowWidth &&
-          position.pageY >= 0 &&
-          position.pageY + position.height <= this._windowHeight) {
-          return {position, isVisible: true};
+    if (x_distance > 0 && y_distance > 0) {
+      if (threshold == 100) {
+        if (position.pageX >= 0
+          && position.pageX + position.width <= this._windowWidth
+          && position.pageY >= 0
+          && position.pageY + position.height <= this._windowHeight) {
+          return { position, isVisible: true };
         }
       } else {
-        if(x_distance * y_distance >= position.width * position.height * threshold / 100) {
-          return {position, isVisible: true};
+        if (x_distance * y_distance >= position.width * position.height * threshold / 100) {
+          return { position, isVisible: true };
         }
       }
     }
-    return {position, isVisible: false};
+    return { position, isVisible: false };
   }
 
   _componentVisible = async (component, options = {}) => {
     let threshold = this._visibilityThreshold;
-    if(typeof options.visibility == 'number') {
+    if (typeof options.visibility === 'number') {
       threshold = options.visibility;
     }
     let waitVisibility = this._waitVisibility;
-    if(typeof options.waitVisibility == 'number') {
+    if (typeof options.waitVisibility === 'number') {
       waitVisibility = options.waitVisibility;
     }
     let checkVis = await this._checkVisible(component, threshold);
     checkVis.threshold = threshold;
     checkVis.waitVisibility = waitVisibility;
-    let position = checkVis.position;
-    if(checkVis.isVisible) {
+    const { position } = checkVis;
+    if (checkVis.isVisible) {
       return checkVis;
     }
-    if(waitVisibility > 0) {
+    if (waitVisibility > 0) {
       await this.pause(waitVisibility);
     } else {
       return checkVis;
@@ -334,19 +333,21 @@ class Runner {
 
   _componentMustVisible = async (component, matcher, options = {}) => {
     const checkVis = await this._componentVisible(component, options);
-    const {position, isVisible, threshold, waitVisibility} = checkVis;
-    if(isVisible) {
+    const {
+      position, isVisible, threshold, waitVisibility
+    } = checkVis;
+    if (isVisible) {
       return position;
     }
     throw new Error(`Component with matcher ${JSON.stringify(matcher)} was not visible: threshold ${threshold} waitVisibility ${waitVisibility} ${JSON.stringify(position)}`);
   }
 
   visible = async (matcher, options = {}) => {
-    try{
+    try {
       const component = await TestStore.findComponent(matcher);
       const checkVis = await this._componentVisible(component, options);
       return checkVis.isVisible;
-    }catch(e) {
+    } catch (e) {
       return false;
     }
   }
@@ -366,7 +367,7 @@ class Runner {
   scrollTo = async (matcher, params, options = {}) => {
     const component = await TestStore.findComponent(matcher);
     const position = await this._componentMustVisible(component, matcher, options);
-    const {x, y, animated} = params;
+    const { x, y, animated } = params;
     UIManager.dispatchViewManagerCommand(
       position.nativeViewTag,
       UIManager.RCTScrollView.Commands.scrollTo,
@@ -390,37 +391,37 @@ class Runner {
     const topDiff = componentPos.pageY - scrollPos.pageY;
     const rightDiff = componentPos.pageX + componentPos.width - scrollPos.pageX - scrollPos.width;
     const leftDiff = componentPos.pageX - scrollPos.pageX;
-    let x = componentPos.x;
-    let y = componentPos.y;   //start
+    let { x } = componentPos;
+    let { y } = componentPos; // start
     const posOption = options.position || 'visible';
-    if(posOption == 'end') {
+    if (posOption == 'end') {
       y = componentPos.height + componentPos.y - scrollPos.height;
       x = componentPos.width + componentPos.x - scrollPos.width;
-    } else if(posOption == 'center') {
+    } else if (posOption == 'center') {
       y = componentPos.y - (scrollPos.height - componentPos.height) / 2;
       x = componentPos.x - (scrollPos.width - componentPos.width) / 2;
     } else if (posOption == 'visible') {
       let needToScroll = false;
-      if(bottomDiff > 0) {
+      if (bottomDiff > 0) {
         y = componentPos.height + componentPos.y - scrollPos.height;
         needToScroll = true;
       } else if (topDiff < 0) {
         needToScroll = true;
       }
-      if(rightDiff > 0) {
+      if (rightDiff > 0) {
         x = componentPos.width + componentPos.x - scrollPos.width;
         needToScroll = true;
       } else if (leftDiff < 0) {
         needToScroll = true;
       }
-      if(!needToScroll) {
-        return await this.visible(matcher, options);
+      if (!needToScroll) {
+        return this.visible(matcher, options);
       }
     }
-    if(x < 0) {
+    if (x < 0) {
       x = 0;
     }
-    if(y < 0) {
+    if (y < 0) {
       y = 0;
     }
 
@@ -430,9 +431,8 @@ class Runner {
       [x, y, true],
     );
 
-    return await this._componentVisible(component, options);
+    return this._componentVisible(component, options);
   }
-
 }
 
 
